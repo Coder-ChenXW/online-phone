@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.chenxw.echarts.mapper.OrdersItemMapper">
+
+    <select id="selectYearBrand" resultType="com.chenxw.echarts.entity.YearBrandData">
+        SELECT CONCAT(YEAR(buyday),'年') year, SUM(sellCount) os
+        FROM orders_item i
+                 JOIN orders o ON o.id = i.id AND YEAR (buyday)
+        GROUP BY YEAR (buyday)
+    </select>
+
+
+    <select id="selectTopFive" resultType="com.chenxw.echarts.vo.TopShopFiveVo">
+        --         SELECT s.shopModel
+--         FROM orders_item o,
+--              shop s
+--         WHERE o.brandId = s.id
+--         GROUP BY s.shopModel
+--         ORDER BY COUNT(s.shopModel) DESC LIMIT 0, 5
+        SELECT s.shopModel, COUNT(*) AS salesCount
+        FROM orders_item o
+                 JOIN shop s ON o.brandId = s.id
+        GROUP BY s.shopModel
+        ORDER BY salesCount DESC LIMIT 5;
+
+    </select>
+
+    <select id="selectKindOfPhone" resultType="com.chenxw.echarts.vo.KindOfPhoneDataVo">
+        SELECT s.shopModel,
+               SUM(oi.sellCount)                           AS totalSellCount,
+               SUM(oi.sellCount) / (SELECT SUM(oi2.sellCount)
+                                    FROM orders_item oi2
+                                             JOIN shop s2 ON oi2.brandId = s2.id
+                                    WHERE s2.brand = '华为') AS sellCountPercentage
+        FROM shop s
+                 JOIN orders_item oi ON oi.brandId = s.id
+        WHERE s.brand = '华为'
+        GROUP BY s.shopModel
+        ORDER BY totalSellCount DESC;
+    </select>
+
+    <select id="selectKindOfPrice" resultType="com.chenxw.echarts.vo.KindOfPhonePriceVo">
+        <![CDATA[
+        SELECT CASE
+                   WHEN s.price >= 1000 AND s.price < 2000 THEN '1000-2000'
+                   WHEN s.price >= 2000 AND s.price < 3000 THEN '2000-3000'
+                   WHEN s.price >= 3000 AND s.price < 4000 THEN '3000-4000'
+                   WHEN s.price >= 4000 AND s.price < 5000 THEN '4000-5000'
+                   ELSE '5000+'
+                   END           AS priceRange,
+               SUM(oi.sellCount) AS totalSellCount
+        FROM shop s
+                 JOIN orders_item oi ON oi.brandId = s.id
+        WHERE s.brand = '华为'
+        GROUP BY priceRange;
+        ]]>
+    </select>
+
+
+    <select id="selectYearBrandKindSell" resultType="com.chenxw.echarts.entity.YearBrandKindSell">
+        <![CDATA[
+        --         SELECT CONCAT(YEAR(o.buyday), '年') AS year, s.brand, SUM(oi.sellCount) AS totalSellCount
+--         FROM orders_item oi
+--             JOIN orders o
+--         ON o.id = oi.id
+--             JOIN shop s ON s.id = oi.brandId
+--         WHERE YEAR (o.buyday) >= YEAR (CURRENT_DATE) - 2
+--         GROUP BY YEAR (o.buyday), s.brand
+--         ORDER BY YEAR (o.buyday), s.brand;
+        SELECT CONCAT(YEAR(o.buyday), '年') AS year, s.brand, SUM(oi.sellCount) AS totalSellCount
+        FROM orders_item oi
+            JOIN orders o
+        ON o.id = oi.id
+            JOIN shop s ON s.id = oi.brandId
+        WHERE YEAR (o.buyday) >= 2020
+        GROUP BY YEAR (o.buyday), s.brand
+        ORDER BY YEAR (o.buyday), s.brand;
+        ]]>
+    </select>
+
+
+    <select id="selectHuaWeiSellTotal" resultType="com.chenxw.echarts.vo.HuaWeiSellTotalVo">
+        SELECT SUM(CASE WHEN YEAR (o.buyday) = 2022 THEN i.sellCount * i.sellPrice ELSE 0 END)           AS amount,
+               SUM(CASE WHEN YEAR (o.buyday) = 2022 THEN i.sellCount ELSE 0 END)                         AS total,
+               COUNT(DISTINCT CASE WHEN YEAR (o.buyday) = 2022 THEN i.id ELSE NULL END)                  AS os,
+               ROUND(100 *
+                     (SUM(CASE WHEN YEAR (o.buyday) = 2022 THEN i.sellCount * i.sellPrice ELSE 0 END) - SUM(CASE WHEN YEAR (o.buyday) = 2021 THEN i.sellCount * i.sellPrice ELSE 0 END)) /
+                     SUM(CASE WHEN YEAR (o.buyday) = 2021 THEN i.sellCount * i.sellPrice ELSE 0 END), 2) AS ratea,
+               ROUND(100 *
+                     (SUM(CASE WHEN YEAR (o.buyday) = 2022 THEN i.sellCount ELSE 0 END) - SUM(CASE WHEN YEAR (o.buyday) = 2021 THEN i.sellCount ELSE 0 END)) /
+                     SUM(CASE WHEN YEAR (o.buyday) = 2021 THEN i.sellCount ELSE 0 END), 2)               AS ratet,
+               ROUND(100 * (COUNT(DISTINCT CASE WHEN YEAR (o.buyday) = 2022 THEN i.id ELSE NULL END) -
+                            COUNT(DISTINCT CASE WHEN YEAR (o.buyday) = 2021 THEN i.id ELSE NULL END)) /
+                     COUNT(DISTINCT CASE WHEN YEAR (o.buyday) = 2021 THEN i.id ELSE NULL END), 2)        AS rateo
+        FROM orders_item i
+                 JOIN orders o ON o.id = i.id
+                 JOIN shop s ON s.id = i.brandId
+        WHERE s.brand = '华为';
+    </select>
+
+
+</mapper>
